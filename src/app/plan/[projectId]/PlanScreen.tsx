@@ -28,6 +28,15 @@ interface ImportResult {
   backend: string;
   fileName: string;
   warnings: string[];
+  method?: "parsed" | "vision";
+}
+
+interface PlanScreenProps {
+  projectId: string;
+  figmaUrl: string;
+  /** The reference site URL, when `source` is "reference-url". */
+  siteUrl?: string;
+  source?: "figma" | "reference-url";
 }
 
 /**
@@ -36,8 +45,12 @@ interface ImportResult {
  * This screen exists to make the import auditable. Every section shows what the
  * agent read it as, why, and how sure it was, so an administrator approves a
  * set of decisions rather than a black box. Nothing is built until they do.
+ *
+ * Shared by both design-import paths — a Figma file and a reference website —
+ * since both need somewhere to show progress while the source is read and
+ * analyzed, and both converge on the same plan shape once that finishes.
  */
-export function PlanScreen({ projectId, figmaUrl }: { projectId: string; figmaUrl: string }) {
+export function PlanScreen({ projectId, figmaUrl, siteUrl = "", source = "figma" }: PlanScreenProps) {
   const router = useRouter();
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState("");
@@ -51,10 +64,15 @@ export function PlanScreen({ projectId, figmaUrl }: { projectId: string; figmaUr
 
     (async () => {
       try {
-        const response = await fetch(`/api/projects/${projectId}/import-figma`, {
+        const endpoint =
+          source === "reference-url"
+            ? `/api/projects/${projectId}/import-reference-site`
+            : `/api/projects/${projectId}/import-figma`;
+        const body = source === "reference-url" ? { siteUrl } : { figmaUrl };
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ figmaUrl }),
+          body: JSON.stringify(body),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error ?? "The import failed");
@@ -63,7 +81,7 @@ export function PlanScreen({ projectId, figmaUrl }: { projectId: string; figmaUr
         setError(caught instanceof Error ? caught.message : String(caught));
       }
     })();
-  }, [projectId, figmaUrl]);
+  }, [projectId, figmaUrl, siteUrl, source]);
 
   async function approve() {
     setApproving(true);
@@ -93,10 +111,11 @@ export function PlanScreen({ projectId, figmaUrl }: { projectId: string; figmaUr
   if (!result) {
     return (
       <main className="plan">
-        <h1>Reading the design…</h1>
+        <h1>{source === "reference-url" ? "Reading your website…" : "Reading the design…"}</h1>
         <p className="muted" style={{ marginTop: 10 }}>
-          Fetching the file, flattening each frame into sections, and working out what each one is.
-          This takes a moment on a real design.
+          {source === "reference-url"
+            ? "Fetching your site, pulling out its colours, fonts and header/footer layout, and working out how to carry that over. This takes a moment on a real site."
+            : "Fetching the file, flattening each frame into sections, and working out what each one is. This takes a moment on a real design."}
         </p>
       </main>
     );
@@ -115,8 +134,13 @@ export function PlanScreen({ projectId, figmaUrl }: { projectId: string; figmaUr
         <span className="muted">{plan.tagline}</span>
       </div>
       <p className="muted" style={{ marginTop: 8 }}>
-        From <strong>{result.fileName}</strong> via the {result.backend} backend —{" "}
-        {plan.pages.length} page{plan.pages.length === 1 ? "" : "s"}, {functionalCount} approved
+        From <strong>{result.fileName}</strong>{" "}
+        {source === "reference-url"
+          ? result.method === "vision"
+            ? "(read visually — its markup was too sparse to parse directly)"
+            : "(read from its page markup)"
+          : `via the ${result.backend} backend`}{" "}
+        — {plan.pages.length} page{plan.pages.length === 1 ? "" : "s"}, {functionalCount} approved
         component{functionalCount === 1 ? "" : "s"} mapped.
       </p>
 

@@ -16,6 +16,7 @@ export default function NewProject() {
   const caps = capabilities();
   const figma = caps.find((c) => c.id === "IMPORT_FIGMA")!;
   const base = caps.find((c) => c.id === "START_FROM_BASE")!;
+  const referenceSite = caps.find((c) => c.id === "IMPORT_REFERENCE_SITE")!;
 
   return (
     <main className="start">
@@ -26,7 +27,13 @@ export default function NewProject() {
         what engineering already supports.
       </p>
 
-      <StartPoints figmaState={figma.state} figmaDetail={figma.detail} baseDetail={base.detail} baseState={base.state} />
+      <StartPoints
+        figmaState={figma.state}
+        figmaDetail={figma.detail}
+        baseDetail={base.detail}
+        baseState={base.state}
+        referenceSiteDetail={referenceSite.detail}
+      />
 
       {!hasApiKey() && (
         <div className="notice">

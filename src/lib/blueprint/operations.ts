@@ -3,6 +3,7 @@ import {
   type Blueprint,
   DesignTokens,
   LayoutProps,
+  LayoutSlots,
   MAX_SECTION_DEPTH,
   type Page,
   Section,
@@ -145,6 +146,18 @@ export const RecordUnsupportedOp = z.object({
   reason: z.string().min(1),
 });
 
+/**
+ * Assigns the global header/sidebar/main/footer slots to existing sections.
+ *
+ * A slot is cleared by omitting it — not by passing an empty string — the same
+ * "absent means unchanged, not empty" convention `update_theme` already uses for
+ * its optional fields.
+ */
+export const SetLayoutSlotsOp = z.object({
+  op: z.literal("set_layout_slots"),
+  slots: LayoutSlots,
+});
+
 export const BlueprintOperation = z.discriminatedUnion("op", [
   AddPageOp,
   RemovePageOp,
@@ -158,6 +171,7 @@ export const BlueprintOperation = z.discriminatedUnion("op", [
   UpdateCompanyOp,
   SetNavOp,
   RecordUnsupportedOp,
+  SetLayoutSlotsOp,
 ]);
 export type BlueprintOperation = z.infer<typeof BlueprintOperation>;
 
@@ -892,6 +906,22 @@ export function applyOperations(
           requestedAt: new Date().toISOString(),
         });
         changes.push(`Logged an unsupported request: ${operation.request}`);
+        break;
+      }
+
+      case "set_layout_slots": {
+        const missing = Object.entries(operation.slots)
+          .filter(([, sectionId]) => sectionId && !findSection(blueprint, sectionId))
+          .map(([slot]) => slot);
+        if (missing.length > 0) {
+          rejected.push({
+            operation,
+            reason: `no section for slot(s): ${missing.join(", ")}`,
+          });
+          break;
+        }
+        Object.assign(blueprint.layout.slots, operation.slots);
+        changes.push(`Set layout slots: ${Object.keys(operation.slots).join(", ")}`);
         break;
       }
     }

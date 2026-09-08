@@ -9,6 +9,7 @@ import {
 } from "@/components/preview/PreviewFrame";
 import { ComponentCatalog } from "@/components/studio/ComponentCatalog";
 import { FidelityReview } from "@/components/studio/FidelityReview";
+import { ThemeEditor } from "@/components/studio/ThemeEditor";
 import type { Blueprint, Section } from "@/lib/blueprint/schema";
 import type { FidelityReport } from "@/lib/fidelity/types";
 
@@ -174,7 +175,15 @@ const SUGGESTIONS = [
   "Add a hiring process section",
 ];
 
-export function Studio({ projectId, startFromBase }: { projectId: string; startFromBase: boolean }) {
+export function Studio({
+  projectId,
+  startFromBase,
+  startFromDefaults = false,
+}: {
+  projectId: string;
+  startFromBase: boolean;
+  startFromDefaults?: boolean;
+}) {
   const [data, setData] = useState<ProjectData | null>(null);
   const [pageId, setPageId] = useState<string>("");
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
@@ -183,6 +192,8 @@ export function Studio({ projectId, startFromBase }: { projectId: string; startF
   const [source, setSource] = useState<DataSource>("sample");
   const [hasDataset, setHasDataset] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [showThemeEditor, setShowThemeEditor] = useState(false);
+  const [seedingDefaults, setSeedingDefaults] = useState(false);
   /** Bumped after every change so the preview frame reloads the blueprint. */
   const [previewKey, setPreviewKey] = useState(0);
 
@@ -394,6 +405,24 @@ export function Studio({ projectId, startFromBase }: { projectId: string; startF
     );
   }, [data, send, startFromBase]);
 
+  // Starting from scratch has no import to wait on, so the blueprint is seeded
+  // synchronously and the guided theme editor opens immediately — there is
+  // nothing yet to describe in a conversation.
+  useEffect(() => {
+    if (!startFromDefaults || kickedOff.current || !data || data.blueprint) return;
+    kickedOff.current = true;
+    setSeedingDefaults(true);
+    (async () => {
+      try {
+        await fetch(`/api/projects/${projectId}/use-defaults`, { method: "POST" });
+        await load();
+        setShowThemeEditor(true);
+      } finally {
+        setSeedingDefaults(false);
+      }
+    })();
+  }, [data, load, projectId, startFromDefaults]);
+
   async function revert(version: number) {
     await fetch(`/api/projects/${projectId}/versions`, {
       method: "POST",
@@ -435,10 +464,10 @@ export function Studio({ projectId, startFromBase }: { projectId: string; startF
     );
   }
 
-  if (!data) {
+  if (!data || seedingDefaults) {
     return (
       <main className="start">
-        <h1 className="muted">Loading…</h1>
+        <h1 className="muted">{seedingDefaults ? "Setting up your default site…" : "Loading…"}</h1>
       </main>
     );
   }
@@ -496,6 +525,17 @@ export function Studio({ projectId, startFromBase }: { projectId: string; startF
         />
       )}
 
+      {showThemeEditor && blueprint && (
+        <ThemeEditor
+          projectId={projectId}
+          tokens={blueprint.company.brand.tokens}
+          onClose={() => setShowThemeEditor(false)}
+          onApplied={() => {
+            void load();
+          }}
+        />
+      )}
+
       <header className="topbar">
         <h1>{blueprint?.company.name ?? data.project.name}</h1>
         {data.project.currentVersion > 0 && (
@@ -511,6 +551,11 @@ export function Studio({ projectId, startFromBase }: { projectId: string; startF
 
         <span className="spacer" />
 
+        {blueprint && (
+          <button className="btn btn-sm" onClick={() => setShowThemeEditor(true)}>
+            Customise look
+          </button>
+        )}
         <button className="btn btn-sm" onClick={() => setShowHistory((v) => !v)}>
           History
         </button>

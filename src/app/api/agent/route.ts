@@ -1,5 +1,6 @@
 import { runAgent } from "@/lib/agent/orchestrator";
 import { store } from "@/lib/store/store";
+import { clients } from "@/lib/store/clients";
 
 // The agent turn is long-running and tool-heavy; keep it on the Node runtime.
 export const runtime = "nodejs";
@@ -28,6 +29,19 @@ export async function POST(request: Request) {
     return Response.json({ error: "No such project" }, { status: 404 });
   }
 
+  const { allowed, usage, limit } = await clients.canEdit(project.clientId);
+  if (!allowed) {
+    return Response.json(
+      {
+        error: `You've used all ${limit} edits included in your current plan this period. Upgrading your plan or waiting for the next billing period will let you keep making changes — nothing you've built so far is affected.`,
+        code: "edit_limit_reached",
+        editCount: usage.editCount,
+        limit,
+      },
+      { status: 403 },
+    );
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -41,6 +55,9 @@ export async function POST(request: Request) {
           selection: body.selection,
         })) {
           send(event);
+          if (event.type === "done" && event.blueprintChanged) {
+            await clients.recordEdit(project.clientId);
+          }
         }
       } catch (error) {
         send({ type: "error", message: error instanceof Error ? error.message : String(error) });

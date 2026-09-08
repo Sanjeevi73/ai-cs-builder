@@ -143,7 +143,7 @@ const SectionBase = z.object({
    */
   origin: z
     .object({
-      kind: z.enum(["figma", "base", "agent", "admin"]),
+      kind: z.enum(["figma", "base", "agent", "admin", "reference-url"]),
       ref: z.string().default(""),
       confidence: z.number().min(0).max(1).optional(),
       note: z.string().default(""),
@@ -193,6 +193,24 @@ export const NavItem = z.object({
   href: z.string().optional(),
 });
 
+/**
+ * Named global slots, each pointing at a section id that already exists
+ * somewhere in `pages[].sections`.
+ *
+ * This is a semantic label layer only — it does not carry its own content or
+ * duplicate the section tree. A renderer that wants "the header" resolves the
+ * id here against the section it already fetched from the owning page. Slots
+ * are optional because not every site defines a global sidebar, and older
+ * blueprints have no `layout` at all.
+ */
+export const LayoutSlots = z.object({
+  header: Slug.optional(),
+  sidebar: Slug.optional(),
+  main: Slug.optional(),
+  footer: Slug.optional(),
+});
+export type LayoutSlots = z.infer<typeof LayoutSlots>;
+
 export const Blueprint = z.object({
   projectId: z.string().min(1),
   version: z.number().int().positive().default(1),
@@ -203,6 +221,8 @@ export const Blueprint = z.object({
   }),
   nav: z.array(NavItem).default([]),
   pages: z.array(Page).min(1),
+  /** Global header/sidebar/main/footer assignment. See `LayoutSlots`. */
+  layout: z.object({ slots: LayoutSlots.default({}) }).default({ slots: {} }),
   /**
    * Capabilities the admin asked for that no approved component supports. The
    * agent records them here rather than inventing an implementation, and the
@@ -213,6 +233,8 @@ export const Blueprint = z.object({
     .default([]),
 });
 export type Blueprint = z.infer<typeof Blueprint>;
+/** Pre-parse shape — every `.default()` field optional. For hand-written seeds. */
+export type BlueprintInput = z.input<typeof Blueprint>;
 
 /** A saved point in a project's history. Every approved change creates one. */
 export const BlueprintVersion = z.object({
@@ -245,16 +267,19 @@ export const Project = z.object({
   name: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  entryPoint: z.enum(["figma", "base"]),
-  /** Figma file key or base repo URL, depending on entryPoint. */
+  entryPoint: z.enum(["figma", "base", "reference-url", "defaults"]),
+  /** Figma file key, base repo URL, or reference site URL, depending on entryPoint. */
   sourceRef: z.string().default(""),
   /**
    * `reviewing` is the design-fidelity gate: the site is built, but a Figma
-   * import is held there until an administrator has approved the comparison
-   * between the design and what was built. Base-site projects never enter it —
-   * they have no design to be compared against.
+   * or reference-url import is held there until an administrator has approved
+   * the comparison between the design and what was built. Base-site and
+   * defaults projects never enter it — they have no design to be compared
+   * against.
    */
   status: z.enum(["planning", "reviewing", "ready", "publish-requested"]).default("planning"),
   currentVersion: z.number().int().nonnegative().default(0),
+  /** Owning client, for per-tenant edit limits. See `src/lib/store/clients.ts`. */
+  clientId: z.string().default("default"),
 });
 export type Project = z.infer<typeof Project>;

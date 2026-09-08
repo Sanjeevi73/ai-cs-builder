@@ -185,6 +185,7 @@ export const store = {
     name: string;
     entryPoint: Project["entryPoint"];
     sourceRef?: string;
+    clientId?: string;
   }): Promise<Project> {
     const project: Project = {
       id: randomUUID(),
@@ -195,6 +196,7 @@ export const store = {
       currentVersion: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      clientId: input.clientId ?? "default",
     };
     await writeJson(path.join(await projectDir(project.id), "project.json"), project);
     return project;

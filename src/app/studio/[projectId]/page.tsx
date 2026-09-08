@@ -11,5 +11,5 @@ export default async function StudioPage({
 }) {
   const { projectId } = await params;
   const { start } = await searchParams;
-  return <Studio projectId={projectId} startFromBase={start === "base"} />;
+  return <Studio projectId={projectId} startFromBase={start === "base"} startFromDefaults={start === "defaults"} />;
 }

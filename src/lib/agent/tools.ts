@@ -541,6 +541,7 @@ export function buildTools(context: ToolContext) {
         },
         nav: [],
         pages: [{ id: "home", name: "Home", path: "/", sections: [], seo: { title: companyName, description: "" } }],
+        layout: { slots: {} },
         unsupportedRequests: [],
       };
 

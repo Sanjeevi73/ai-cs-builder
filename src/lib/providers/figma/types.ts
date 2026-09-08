@@ -52,8 +52,15 @@ export interface DesignDocument {
   fileKey: string;
   fileName: string;
   lastModified: string;
-  /** Where this came from, so the studio can be honest about fidelity. */
-  backend: "mcp" | "rest" | "mock";
+  /**
+   * Where this came from, so the studio can be honest about fidelity.
+   *
+   * `mcp`/`rest`/`mock` are Figma transports; `url-parsed`/`url-vision` are the
+   * reference-website-URL path (see `src/lib/providers/reference-site`) —
+   * parsed markup, or a screenshot read by Claude's vision when parsing found
+   * too little to work with.
+   */
+  backend: "mcp" | "rest" | "mock" | "url-parsed" | "url-vision";
   frames: DesignFrame[];
   styles: DesignStyles;
   /**

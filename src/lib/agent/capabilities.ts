@@ -3,6 +3,7 @@ import { figmaStatus } from "@/lib/providers/figma";
 import { baseSiteStatus } from "@/lib/providers/github";
 import { getStockProvider } from "@/lib/providers/images/stock";
 import { researchStatus } from "@/lib/providers/research";
+import { referenceSiteStatus } from "@/lib/providers/reference-site";
 import { hasApiKey } from "./client";
 
 /**
@@ -64,6 +65,7 @@ export function capabilities(): Capability[] {
   const base = baseSiteStatus();
   const stock = getStockProvider();
   const research = researchStatus();
+  const referenceSite = referenceSiteStatus();
 
   return [
     {
@@ -80,6 +82,16 @@ export function capabilities(): Capability[] {
             ? ["FIGMA_TOKEN"]
             : ["FIGMA_PROVIDER=mcp (desktop) or FIGMA_PROVIDER=rest + FIGMA_TOKEN"],
       tools: ["import_figma"],
+    },
+    {
+      id: "IMPORT_REFERENCE_SITE",
+      name: "Match an existing company website",
+      description:
+        "Reads a company's current website, extracts its colours, fonts, and header/footer structure, and produces a site plan for approval — the same way a Figma import does.",
+      state: "ready",
+      detail: referenceSite.detail,
+      requires: [],
+      tools: ["import_reference_site"],
     },
     {
       id: "START_FROM_BASE",

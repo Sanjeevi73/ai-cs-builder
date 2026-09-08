@@ -7,13 +7,20 @@ export default async function PlanPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ figma?: string }>;
+  searchParams: Promise<{ figma?: string; siteUrl?: string }>;
 }) {
   const { projectId } = await params;
-  const { figma } = await searchParams;
+  const { figma, siteUrl } = await searchParams;
 
   // "demo" is the sentinel the start screen sends when no URL was supplied —
   // the mock backend ignores the key, and any other backend will reject it
   // with a message the admin can act on.
-  return <PlanScreen projectId={projectId} figmaUrl={figma === "demo" ? "" : (figma ?? "")} />;
+  return (
+    <PlanScreen
+      projectId={projectId}
+      figmaUrl={figma === "demo" ? "" : (figma ?? "")}
+      siteUrl={siteUrl ?? ""}
+      source={siteUrl ? "reference-url" : "figma"}
+    />
+  );
 }
